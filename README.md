@@ -1,6 +1,6 @@
 # PAPAS, the PArameter Pollution Analysis System
 
-Years back, we investigated the prevalence in-the-wild of a new class of web threat named as HTTP Parameter Pollution (HPP) vulnerability.
+Years back, we investigated the prevalence in-the-wild of a new class of web vulnerability named HTTP Parameter Pollution (HPP).
 
 To this need, we developed PAPAS i.e. an automated testing framework that relies on a custom Firefox's extension to load and render dynamic web pages, and oo a Python 2.7 engine for testing whether such web page are either vulnerable or exploitable to HPP.
 
