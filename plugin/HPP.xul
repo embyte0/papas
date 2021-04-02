@@ -1,0 +1,343 @@
+<?xml version="1.0"?>
+<overlay id="sample" 
+         xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+
+<script type="application/x-javascript"><![CDATA[
+
+// Copyright (C) 2010-2021 Marco `embyte` Balduzzi
+// This file is part of PAPAS.
+//
+// PAPAS is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// PAPAS is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Nome-Programma.  If not, see <http://www.gnu.org/licenses/>.
+
+////////////////////////////////////////////////////////
+//   PAPAS, the PArameter Pollution Analysis System   //
+//                                                    //
+//   https://github.com/embyte0/papas                 //
+//                                   embyte (c) 2010  //
+////////////////////////////////////////////////////////
+
+
+/// init is here
+const HPP_VERSION = "0.2"
+// globals
+var hppServer = null;       
+var lastURI = null;
+
+dump("\n")
+hpp_dump ("HPP Detector running");
+
+// Dump to output
+function hpp_dump(msg) {
+  msg = "hpp: " + msg + "\n";
+  dump(msg);
+}
+
+function netObj(port)    
+{
+    this.socket = Components.classes["@mozilla.org/network/server-socket;1"].createInstance(Components.interfaces.nsIServerSocket);
+    this.inputStream = null;
+    this.outputStream = null;
+    try {
+        this.socket.init(port, false /* 0.0.0.0 bind */, 5);
+        this.socket.asyncListen(this);
+    } catch (e) {
+        hpp_dump("Exception caught: " + e);
+        return -1;
+    }
+    
+    hpp_dump("[startServer] Listening on port " + this.socket.port);
+}
+
+netObj.prototype = {
+
+    onSocketAccepted: function (serverSocket, clientSocket) 
+    {
+        if (this.inputStream != null) {
+            hpp_dump("I am already serving a client, bye");
+            clientSocket.close("busy");
+            return;
+        }
+    
+        hpp_dump("[onSocketAccepted] Accepted connection from "+clientSocket.host+":"+clientSocket.port);
+
+        try {
+            this.inputStream = clientSocket.openInputStream(0, 0, 0);
+            this.outputStream = clientSocket.openOutputStream(0, 0, 0);
+            
+            instream = Components.classes["@mozilla.org/scriptableinputstream;1"].createInstance(Components.interfaces.nsIScriptableInputStream);
+            instream.init(this.inputStream);
+
+            var pump = Components.classes["@mozilla.org/network/input-stream-pump;1"].createInstance(Components.interfaces.nsIInputStreamPump);
+            pump.init(this.inputStream, -1, -1, 0, 0, false);
+            pump.asyncRead(this, null);	
+
+        }
+        catch (e) { 
+            hpp_dump("Exception caught: " + e);
+            return;
+        }        
+    },
+
+    onStartRequest: function (request, context) { /* nothing here */ },
+    onStopRequest: function (request, context, result) 
+    { 
+        hpp_dump("OnStopRequest");
+        try {
+            instream.close();
+            
+            // we should close them and reset to null
+            this.inputStream.close();
+            this.inputStream=null;
+            this.outputStream.close();
+            this.outputStream=null;
+            delete instream;
+        }  catch (e) { hpp_dump("Exception caught: " + e); }        
+
+    },
+
+	onDataAvailable: function (request, context, inputStream, offset, count)
+	{
+	    var data = instream.read(count).replace('\n', '');
+
+	    this.writeln("---DEBUG--- recv: " + data);
+	    
+	    // the FFX reboot routing
+	    if (data.search("reboot")==0) {
+            try {
+                // close main socket
+                this.socket.close()
+                
+                instream.close();
+                // close current connection
+                this.inputStream.close();
+                this.inputStream=null;
+                this.outputStream.close();
+                this.outputStream=null;
+
+                // reload chrome
+			    Components.classes["@mozilla.org/chrome/chrome-registry;1"].getService(Components.interfaces.nsIXULChromeRegistry).reloadChrome();
+
+            }  catch (e) { hpp_dump("Exception caught: " + e); }    
+	    
+	    }
+	    
+	    else if (data.search("http(s)?://")==0) {
+	        
+	        // "uri postString"
+	        spacePosition=data.search(" ");
+	        if (spacePosition==-1) {
+	            var uri=data;
+	            var postData = null;
+	            
+	            hpp_dump("GET:" + uri);
+	        }
+	        else {
+	            var uri=data.substring(0, spacePosition);
+	            var postString=data.substring(spacePosition+1, data.length);
+
+                var stringStream = Components.classes["@mozilla.org/io/string-input-stream;1"].createInstance(Components.interfaces.nsIStringInputStream);
+                stringStream.data = postString;
+                var postData = Components.classes["@mozilla.org/network/mime-input-stream;1"].createInstance(Components.interfaces.nsIMIMEInputStream);
+                postData.addHeader("Content-Type", "application/x-www-form-urlencoded");
+                postData.addContentLength = true;
+                postData.setData(stringStream);
+                
+                hpp_dump("POST:" + uri + " DATA:" + postString);
+	        }
+
+	        lastURI = uri;       // this is a global var to keep track of the page we want to analyze	        
+	        gBrowser.loadURIWithFlags(uri, 32, null, null, postData);
+
+        }
+            
+    },
+
+    // socket output functions 
+    write: function (what) 
+    {
+        if (this.outputStream!=null) {
+            tot = what.length;
+            //hpp_dump("to write : " + tot);
+            tot_w = 0;
+            do {
+                remaining = what.slice(tot_w)
+                hpp_dump(remaining.length)
+                if (remaining.length>1024) 
+                   how_much = 1024
+                else
+                   how_much = remaining.length 
+                hpp_dump(how_much)
+                w = this.outputStream.write(remaining, how_much);
+                this.outputStream.flush();
+                tot_w += w
+                hpp_dump("tot_w:" + tot_w + " w:" + w)
+                               
+            } while (tot_w<tot);
+            hpp_dump("done.")
+        }
+    },
+    writeln: function (what) 
+    {
+        if (this.outputStream!=null) {
+            this.outputStream.write(what+"\n", what.length+1);
+            this.outputStream.flush();
+        }
+    },
+
+//	QueryInterface: function (iid)
+//	{
+//		if (iid. equals (Components. interfaces. nsIStreamListener) ||
+//		    iid. equals (Components. interfaces. nsISupports))
+//		    return this;
+//		throw Components. results. NS_ERROR_NO_INTERFACE;
+//	}
+
+};
+       
+window.addEventListener("load",hpp_init,false);
+
+function go(url, postdata) {
+    hpp_dump ("Visiting " + url)
+    window.open (url);
+}
+
+// Entry point
+function hpp_init() {
+    //var port = 4440+Math.random()*100;
+    var port = 10001
+    hppServer = new netObj(port);
+    if (hppServer==-1) {
+        dump("ABORT");
+    }
+    else {
+        var tabZero = gBrowser.getBrowserAtIndex(0);
+        tabZero.addEventListener("load", hpp_pageload, true);
+        //document.addEventListener("load", hpp_pageload, true);
+    }
+}
+
+
+// Callback tab[0].onload
+function hpp_pageload(event) {
+    if (event.originalTarget instanceof HTMLDocument) {
+        var page = event.originalTarget;
+        var url = page.location.href
+
+        var tab = gBrowser.getBrowserAtIndex(0);
+        var tab_url = tab.currentURI.spec;
+        // we parse _ONLY_ the top document (that one with the same URL of the browser TAB        
+        if (url!=tab_url)   
+            return
+        
+        // test
+        //if (url!=lastURI)
+        //    return
+         
+        //BrowserViewSourceOfDocument(gBrowser.contentDocument)
+        //return    
+            
+        var answer = "URL:" + url + "|";
+        
+        /* Here it comes the processing */
+        //answer += "LINKS:" + hpp_getParametrizedLinksByDOMList(page) + "|";        // get the Links
+        answer += "LINKS:" + hpp_getLinksByDOMList(page) + "|";        // get the Links
+        answer += "FORMS:" + hpp_getFormsByDOMList(page) + "|";                    // get the Forms
+        answer += "BODY:" +  hpp_getBodyHtml(page) + "|";                          // get the Page's Body HTML
+        
+        answer += "--EOF--"
+       
+        hppServer.write(answer);        
+        //hpp_dump(answer);
+    }
+    else { hpp_dump("Error: I should have a document element here."); }
+}
+
+function hpp_getLinksByDOMList(page) {  
+    var linkslist = page.links;
+    var strRet = "";
+
+    for (i=0; i<linkslist.length; i++) {
+        href=linkslist[i].href;
+        if (href.search("javascript:")==-1)             // javascript links are not interested
+            strRet += '<a href="' + href + '">' + "\n";
+        
+    }   
+
+    return strRet;
+}
+
+//function hpp_getParametrizedLinksByDOMList(page) {  
+//    var linkslist = page.links;
+//    var strRet = "";
+
+//    for (i=0; i<linkslist.length; i++) {
+//        href=linkslist[i].href;
+//        if (href.search("[?&][^=]+=")>0)      
+//            strRet += '<a href="' + href + '">' + "\n";
+//    }   
+
+//    return strRet;
+//}
+
+
+// this should be verified
+function hpp_getFormsByDOMList(page) {
+    var formlist = page.forms;
+    var strRet = "";
+    var form = null;
+    var elist = null;
+    
+    for (i=0; i<formlist.length; i++) {
+        form = formlist[i];
+        elist = form.elements;
+        
+        strRet += '<form id="'+form.id+'" action="'+form.action+'" method="'+form.method+'">';      // the form action
+        for (k=0; k<elist.length; k++)
+            strRet += '<input type="'+elist[k].type+'" name="'+elist[k].name+'" value="'+elist[k].value+'">';        
+        strRet += "</form>\n";
+    }
+
+    return strRet;        
+
+}
+
+
+// TODO: Maybe we need more than the body...
+function hpp_getBodyHtml(page) {
+    var fullBody = page.body.innerHTML;
+    var strRet = fullBody.slice(0, 1028*200)        // set a max of 200KB to the HTML body
+
+    return strRet;
+}
+
+//This is for logging to file - we dont need (hopefully) here
+//function hpp_logging_init (path) {
+
+//        var file = Components.classes["@mozilla.org/file/local;1"].createInstance(Components.interfaces.nsILocalFile);
+//        file.initWithPath(path);
+//        if ( file.exists() == false ) {
+//	        hpp_dump( "Creating log file... " );
+//	        file.create( Components.interfaces.nsIFile.NORMAL_FILE_TYPE, 420 );
+//        }
+//        hpp_outputStream = Components.classes["@mozilla.org/network/file-output-stream;1"].createInstance( Components.interfaces.nsIFileOutputStream );
+//	    hpp_outputStream.init( file, 0x04 | 0x08 | 0x20, 420, 0 );
+//        hpp_dump("[hpp_logging_init] Logfile initialized");
+//}
+//function hpp_log(msg) {
+//        hpp_outputStream.write(msg+"\n", msg.length+1);
+//}
+
+]]></script>
+</overlay>
+
