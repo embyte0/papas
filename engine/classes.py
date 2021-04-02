@@ -114,9 +114,9 @@ class form:
             if _name=="":   # a limitation? if there is no name continue with the next param
                 continue
             elif _type=="text" and re.match("e-?mail$", _name, re.I):
-                _value = "hpp@iseclab.org"
+                _value = "fooemail@domain.it"
             elif _type=="password" or re.match("pass(word)?$", _name, re.I) or re.match("passwd$", _name, re.I):
-                _value = "aXsdP1j2"
+                _value = "@31as!random"
             elif _value == "":
                 _value = "foo"      # int or string?? mhhh
                 

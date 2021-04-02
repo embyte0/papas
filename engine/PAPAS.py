@@ -841,7 +841,7 @@ def test_site(site_name):
     
 # e.g. reboot_ffx("localhost", 4444, dev)   - This should be sync with the configuration        
 def reboot_ffx(server, server_port, profile):
-    FFX_PATH = "/home/hpp/firefox"
+    FFX_PATH = "/home/hpp/firefox"      # Set to your Firefox path installation
 
     if server == "localhost" or server == "127.0.0.1":
         cmd = 'ps -eo pid:6,command | /bin/egrep "[0-9]+ %s/firefox-bin -no-remote -P %s$" | cut -c 1-6'%(FFX_PATH, profile)
@@ -927,7 +927,7 @@ if __name__ == "__main__":
     parser.add_option("-n", "--profileName", help="the ffx profile", type="string", dest="profileName", default="papas1")    
 
     parser.add_option("-u", "--singleUrl", help="a single URL to scan", type="string", dest="singleUrl")
-    parser.add_option("-m", "--mailTo",    help="mail the result to him", type="string", dest="mailTo")
+    parser.add_option("-m", "--mailTo",    help="mail the result to this address", type="string", dest="mailTo")
     parser.add_option("-o", "--owner",     help="the owner of the site", type="string", dest="siteOwner", default="")        
 
     parser.add_option("-P", "--enablePScan", help="enable the scan of the precedence", action="store_true", dest="enablePScan")        
@@ -1092,7 +1092,7 @@ if __name__ == "__main__":
     
     
     # papas is ready again
-    DB = load_dbauth("/home/hpp/db.auth")
+    DB = load_dbauth("/home/hpp/db.auth")       # Set the credentials of the database for logging
     db = pg.connect(dbname=DB['name'], host=DB['host'], user=DB['user'], passwd=DB['passwd'])
     if options.siteID: db.query ("UPDATE sites SET status = 'completed' WHERE id = '%s'"%options.siteID)
     db.query ("UPDATE instances SET status = 'ready' WHERE name = '%s'"%options.profileName)

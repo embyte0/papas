@@ -93,7 +93,7 @@ def get_scheleton(sitename):
               <a href="/cgi-bin/verify.py" class="navlink">Validation</a>
             </td>
             <td class="menulevel0">
-              <a href="http://papas.iseclab.org/reports/www.eurecom.fr.38965d8f98693bac0e532cc8525c70d60350ac55629250623ddbf9cc372126ca.html" class="navlink">Examples</a>
+              <a href="URL_OF_EXAMPLE_REPORT_HERE" class="navlink">Examples</a>
             </td>
             <td class="menulevel0last">
               <a href="/cgi-bin/resources.py" class="navlink">Resources</a>
@@ -135,17 +135,7 @@ def get_down():
   </tbody>
 </table>
 
-<div class="footertext"><a href="http://www.iseclab.org/people/embyte/">&copy; 2010 Marco `embyte` Balduzzi</a> @ <a href="http://www.iseclab.org">International Secure Systems Lab</a> <br />
-
-<script type="text/javascript">
-var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
-document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
-</script>
-<script type="text/javascript">
-try {
-var pageTracker = _gat._getTracker("UA-11111381-1");
-pageTracker._trackPageview();
-} catch(err) {}</script>
+<div class="footertext"><a href="https://www.madlab.it/">&copy; 2010 Marco `embyte` Balduzzi</a> @ <a href="http://www.iseclab.org">International Secure Systems Lab</a> <br />
 </div>
 
 </body>
